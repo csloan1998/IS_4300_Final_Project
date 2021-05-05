@@ -1,0 +1,79 @@
+---
+title: "IS 4300 Final Project"
+author: "Camille Sloan"
+date: "Spring 2021"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r include=FALSE}
+# Required packages and files
+
+if(!require(tidyverse)) install.packages("tidyverse", repos = "http://cran.us.r-project.org")
+
+urlfile <- "https://vincentarelbundock.github.io/Rdatasets/csv/DAAG/spam7.csv"
+spam <- read_csv(url(urlfile))
+```
+
+## Dataset Introduction
+
+In this report, we will create a model using the *spam7* dataset to determine when an email is likely to be identified as spam or not. There are 4,601 total records of data in this dataset with 8 variables to choose from for input to the model. The target variable is labeled *yesno*, and it specifies the spam status of the record.
+
+```{r, include = FALSE}
+str(spam)
+```
+
+The two variables within the dataset that we will use as input to the model are *n000*, which holds the number of
+times the content of the email had a string that included '000', and *dollar*, which holds the number of '$' symbols were in the content of the email. 
+
+Below is a plot that will help to give a better idea of how these variables appear on a graph. The values are colored red for *n*, or **not** spam, and blue for *y*, or **yes** spam. Outliers have been filtered out to better show the spread of the values.
+
+```{r, echo = FALSE}
+filtered_spam <- spam %>% filter(n000 < 2 & dollar < 2)
+spamPlot <- filtered_spam %>% ggplot()
+spamPlot + geom_point(aes(n000, dollar,col=yesno),size = 1.5)
+```
+
+
+## The Model
+
+To create a decision  model for this dataset, lines will be placed on both the horizontal and vertical axes at the best position possible to indicate when a value would likely be determined *n* or *y*. 
+
+After some time exploring the options, I concluded that the lines should be placed at 0.05 for the x axis and 0.06 for the y axis. Here is what that looks like:
+
+```{r, echo = FALSE}
+spamPlot + geom_point(aes(n000, dollar,col=yesno),size = 1.5) +
+  geom_vline(xintercept = 0.05) +
+  geom_hline(yintercept = 0.06)
+```
+
+This means that the model will predict any value of *n000* less than 0.05 to be considered *n*, not spam, and anything above it *y*, spam, and any value of *dollar* less than 0.06 to be considered *n*, not spam, and anything above it *y*, spam. 
+
+Below is a table that displays the predicted values compared to the actual:
+
+``` {r, echo = FALSE}
+spam$prediction <- ifelse(spam$n000 >= 0.05,"y",
+                          ifelse(spam$dollar >= 0.06, "y", "n"))
+T <- table(Predicted = spam$prediction, Actual = spam$yesno)
+T
+```
+
+This shows that the model predicted *n* correctly 2,609 times out of the total 3,343 occurrences of *n*, and it predicted *y* correctly 1,079 times out of the total 1,258 occurrences of *y*. 
+
+To further analyze the results, let's look at the model's accuracy, sensitivity, and specificity.
+
+```{r, echo = FALSE}
+T <- as.vector(T)
+accuracy <- (T[1]+T[4])/(T[1]+T[2]+T[3]+T[4]) 
+sensitivity <- T[4]/(T[3]+T[4])
+specificity <- T[1]/(T[1]+T[2])
+metric <- c("Accuracy","Sensitivity","Specificity")
+value <- c(accuracy,sensitivity,specificity)
+data.frame(Metric = metric,Value = round(value,3))
+```
+The accuracy is 80.2%, which indicates a strong model. The specificity is an impressive 93.6%. The sensitivity is a bit low, at 59.5%, but, based on my analysis, this decision model is the strongest possible for predicting when an email is determined as spam or not spam in this dataset.
